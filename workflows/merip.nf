@@ -145,7 +145,7 @@ workflow MERIP {
     //
     FASTQ_TRIM_FASTP_FASTQC (
         ch_cat_fastq,
-        params.adapter_fasta ? Channel.value(file(params.adapter_fasta)) : [:],
+        params.adapter_fasta ? Channel.value(file(params.adapter_fasta)) : [],
         params.save_trimmed_fail,
         params.save_merged,
         params.skip_fastp,
