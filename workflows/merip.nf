@@ -38,6 +38,9 @@ ch_multiqc_custom_config   = params.multiqc_config ? Channel.fromPath( params.mu
 ch_multiqc_logo            = params.multiqc_logo   ? Channel.fromPath( params.multiqc_logo, checkIfExists: true ) : Channel.empty()
 ch_multiqc_custom_methods_description = params.multiqc_methods_description ? file(params.multiqc_methods_description, checkIfExists: true) : file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
 
+ch_peak_count_header       = file("$projectDir/assets/multiqc/peak_count_header.txt", checkIfExists: true)
+ch_frip_score_header       = file("$projectDir/assets/multiqc/frip_score_header.txt", checkIfExists: true)
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT LOCAL MODULES/SUBWORKFLOWS
@@ -142,13 +145,13 @@ workflow MERIP {
     //
     FASTQ_TRIM_FASTP_FASTQC (
         ch_cat_fastq,
-        params.adapter_fasta ? Channel.value(file(params.adapter_fasta)): null,
+        params.adapter_fasta ? Channel.value(file(params.adapter_fasta)) : [:],
         params.save_trimmed_fail,
         params.save_merged,
         params.skip_fastp,
         params.skip_fastqc
     )
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    ch_versions = ch_versions.mix(FASTQ_TRIM_FASTP_FASTQC.out.versions)
 
     //
     // WORKFLOW: prepare genome
@@ -202,10 +205,10 @@ workflow MERIP {
                 PREPARE_GENOME.out.splicesites,
                 PREPARE_GENOME.out.fasta
             )
-            ch_bam_bai = FASTQ_ALIGN_STAR.out.bam.join(FASTQ_ALIGN_STAR.out.bai, by: [0])
-            ch_bam_mqc = FASTQ_ALIGN_STAR.out.stats.collect{it[1]}.ifEmpty(null)
-            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_STAR.out.flagstat.collect{it[1]}.ifEmpty(null) )
-            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_STAR.out.idxstats.collect{it[1]}.ifEmpty(null) )
+            ch_bam_bai = FASTQ_ALIGN_HISAT2.out.bam.join(FASTQ_ALIGN_HISAT2.out.bai, by: [0])
+            ch_bam_mqc = FASTQ_ALIGN_HISAT2.out.stats.collect{it[1]}.ifEmpty(null)
+            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_HISAT2.out.flagstat.collect{it[1]}.ifEmpty(null) )
+            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_HISAT2.out.idxstats.collect{it[1]}.ifEmpty(null) )
             break
         case "bwa" :
             FASTQ_ALIGN_BWA(
@@ -214,10 +217,10 @@ workflow MERIP {
                 true,
                 PREPARE_GENOME.out.fasta.map { [ [:], it ] }
             )
-            ch_bam_bai = FASTQ_ALIGN_STAR.out.bam.join(FASTQ_ALIGN_STAR.out.bai, by: [0])
-            ch_bam_mqc = FASTQ_ALIGN_STAR.out.stats.collect{it[1]}.ifEmpty(null)
-            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_STAR.out.flagstat.collect{it[1]}.ifEmpty(null) )
-            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_STAR.out.idxstats.collect{it[1]}.ifEmpty(null) )
+            ch_bam_bai = FASTQ_ALIGN_BWA.out.bam.join(FASTQ_ALIGN_BWA.out.bai, by: [0])
+            ch_bam_mqc = FASTQ_ALIGN_BWA.out.stats.collect{it[1]}.ifEmpty(null)
+            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_BWA.out.flagstat.collect{it[1]}.ifEmpty(null) )
+            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_BWA.out.idxstats.collect{it[1]}.ifEmpty(null) )
             break
         case "bowtie2" :
             FASTQ_ALIGN_BOWTIE2(
@@ -227,10 +230,10 @@ workflow MERIP {
                 true,
                 PREPARE_GENOME.out.fasta
             )
-            ch_bam_bai = FASTQ_ALIGN_STAR.out.bam.join(FASTQ_ALIGN_STAR.out.bai, by: [0])
-            ch_bam_mqc = FASTQ_ALIGN_STAR.out.stats.collect{it[1]}.ifEmpty(null)
-            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_STAR.out.flagstat.collect{it[1]}.ifEmpty(null) )
-            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_STAR.out.idxstats.collect{it[1]}.ifEmpty(null) )
+            ch_bam_bai = FASTQ_ALIGN_BOWTIE2.out.bam.join(FASTQ_ALIGN_BOWTIE2.out.bai, by: [0])
+            ch_bam_mqc = FASTQ_ALIGN_BOWTIE2.out.stats.collect{it[1]}.ifEmpty(null)
+            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_BOWTIE2.out.flagstat.collect{it[1]}.ifEmpty(null) )
+            ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_BOWTIE2.out.idxstats.collect{it[1]}.ifEmpty(null) )
             break
     }
 
@@ -360,10 +363,11 @@ workflow MERIP {
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
     //ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQ_TRIM_FASTP_FASTQC.out.fastqc_raw_zip.collect{it[1]}.ifEmpty())
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQ_TRIM_FASTP_FASTQC.out.fastqc_trim_zip.collect{it[1]}.ifEmpty())
-    ch_multiqc_files = ch_multiqc_files.mix(MULTIQC_CUSTOM_PEAKS.out.count.collect{it[1]}.ifEmpty())
-    ch_multiqc_files = ch_multiqc_files.mix(MULTIQC_CUSTOM_PEAKS.out.frip.collect{it[1]}.ifEmpty())
+    ch_multiqc_files = ch_multiqc_files.mix(FASTQ_TRIM_FASTP_FASTQC.out.fastqc_raw_zip.collect{it[1]}.ifEmpty(null))
+    ch_multiqc_files = ch_multiqc_files.mix(FASTQ_TRIM_FASTP_FASTQC.out.fastqc_trim_zip.collect{it[1]}.ifEmpty(null))
+    ch_multiqc_files = ch_multiqc_files.mix(ch_bam_mqc)
+    ch_multiqc_files = ch_multiqc_files.mix(MULTIQC_CUSTOM_PEAKS.out.count.collect{it[1]}.ifEmpty(null))
+    ch_multiqc_files = ch_multiqc_files.mix(MULTIQC_CUSTOM_PEAKS.out.frip.collect{it[1]}.ifEmpty(null))
 
 
     MULTIQC (
