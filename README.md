@@ -1,4 +1,4 @@
-# ![jianhong/merip](docs/images/jianhong-merip_logo_light.png#gh-light-mode-only) ![jianhong/merip](docs/images/jianhong-merip_logo_dark.png#gh-dark-mode-only)
+<!-- # ![jianhong/merip](docs/images/jianhong-merip_logo_light.png#gh-light-mode-only) ![jianhong/merip](docs/images/jianhong-merip_logo_dark.png#gh-dark-mode-only)-->
 
 [![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/merip/results)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
 
@@ -25,7 +25,21 @@
 <!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->
 
 1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
-2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+2. Trim reads ([`fastp`](https://github.com/OpenGene/fastp))
+3. Removal of ribosomal RNA ([`SortMeRNA`](https://github.com/biocore/sortmerna))
+4. Choice of multiple alignment and quantification routes: "star", "hisat2", "bwa", "bowtie2"
+   1. [`STAR`](https://github.com/alexdobin/STAR)
+   2. [`HiSAT2`](https://ccb.jhu.edu/software/hisat2/index.shtml)
+   3. [`BWA`](https://sourceforge.net/projects/bio-bwa/files/)
+   4. [`Bowtie2`](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+5. Create normalised bigWig files scaled to total or spike in mapped reads([`BEDTools`](https://github.com/arq5x/bedtools2/), [`bedGraphToBigWig`](http://hgdownload.soe.ucsc.edu/admin/exe/), [`SubRead`](https://subread.sourceforge.net/))
+6. Generate gene-body meta-profile from bigWig files ([`deepTools`](https://deeptools.readthedocs.io/en/develop/content/tools/plotProfile.html))
+7. Call broad/narrow peaks ([`MACS2`](https://github.com/macs3-project/MACS))
+8. Calculate FRiP score
+9. Annotate peaks relative to gene features ([`ChIPpeakAnno`](https://bioconductor.org/packages/release/bioc/html/ChIPpeakAnno.html))
+10. Differential analysis ([`DiffBind`](https://bioconductor.org/packages/release/bioc/html/DiffBind.html)).
+11. Create IGV session file containing bigWig tracks, peaks and differential sites for data visualisation ([`IGV`](https://software.broadinstitute.org/software/igv/)).
+12. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
 
 ## Usage
 
@@ -85,8 +99,6 @@ We thank the following people for their extensive assistance in the development 
 ## Contributions and Support
 
 If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md).
-
-For further information or help, don't hesitate to get in touch on the [Slack `#merip` channel](https://nfcore.slack.com/channels/merip) (you can join with [this invite](https://nf-co.re/join/slack)).
 
 ## Citations
 

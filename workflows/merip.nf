@@ -67,28 +67,28 @@ include { PREPARE_GENOME              } from '../subworkflows/local/prepare_geno
 //
 // MODULE: Installed directly from nf-core/modules
 //
-include { CAT_FASTQ                   } from '../modules/nf-core/cat/fastq/main'
-//include { FASTQC                      } from '../modules/nf-core/fastqc/main'
-include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
-include { SORTMERNA                   } from '../modules/nf-core/sortmerna/main'
-include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 include { BEDTOOLS_GENOMECOV          } from '../modules/nf-core/bedtools/genomecov/main'
 include { BEDTOOLS_SORT               } from '../modules/nf-core/bedtools/sort/main'
-include { UCSC_BEDGRAPHTOBIGWIG       } from '../modules/nf-core/ucsc/bedgraphtobigwig/main'
+include { CAT_FASTQ                   } from '../modules/nf-core/cat/fastq/main'
+include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 include { DEEPTOOLS_COMPUTEMATRIX     } from '../modules/nf-core/deeptools/computematrix/main'
 include { DEEPTOOLS_PLOTPROFILE       } from '../modules/nf-core/deeptools/plotprofile/main'
 include { DEEPTOOLS_PLOTHEATMAP       } from '../modules/nf-core/deeptools/plotheatmap/main'
 include { DEEPTOOLS_PLOTFINGERPRINT   } from '../modules/nf-core/deeptools/plotfingerprint/main'
 include { MACS2_CALLPEAK              } from '../modules/nf-core/macs2/callpeak/main'
+include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
+include { SORTMERNA                   } from '../modules/nf-core/sortmerna/main'
+include { SUBREAD_FEATURECOUNTS       } from '../modules/nf-core/subread/featurecounts/main'
 
 //
 // SUBWORKFLOW: Installed directly from nf-core/modules
 //
-include { FASTQ_TRIM_FASTP_FASTQC     } from '../subworkflows/nf-core/fastq_trim_fastp_fastqc/main'
-include { FASTQ_ALIGN_STAR            } from '../subworkflows/nf-core/fastq_align_star/main'
-include { FASTQ_ALIGN_HISAT2          } from '../subworkflows/nf-core/fastq_align_hisat2/main'
-include { FASTQ_ALIGN_BOWTIE2         } from '../subworkflows/nf-core/fastq_align_bowtie2/main'
-include { FASTQ_ALIGN_BWA             } from '../subworkflows/nf-core/fastq_align_bwa/main'
+include { BEDGRAPH_BEDCLIP_BEDGRAPHTOBIGWIG } from '../subworkflows/nf-core/bedgraph_bedclip_bedgraphtobigwig/main'
+include { FASTQ_TRIM_FASTP_FASTQC           } from '../subworkflows/nf-core/fastq_trim_fastp_fastqc/main'
+include { FASTQ_ALIGN_STAR                  } from '../subworkflows/nf-core/fastq_align_star/main'
+include { FASTQ_ALIGN_HISAT2                } from '../subworkflows/nf-core/fastq_align_hisat2/main'
+include { FASTQ_ALIGN_BOWTIE2               } from '../subworkflows/nf-core/fastq_align_bowtie2/main'
+include { FASTQ_ALIGN_BWA                   } from '../subworkflows/nf-core/fastq_align_bwa/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -197,6 +197,8 @@ workflow MERIP {
             ch_bam_mqc = FASTQ_ALIGN_STAR.out.stats.collect{it[1]}.ifEmpty(null)
             ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_STAR.out.flagstat.collect{it[1]}.ifEmpty(null) )
             ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_STAR.out.idxstats.collect{it[1]}.ifEmpty(null) )
+            ch_versions = ch_versions.mix(FASTQ_ALIGN_STAR.out.versions)
+            ch_flagstat =  FASTQ_ALIGN_STAR.out.flagstat
             break
         case "hisat2":
             FASTQ_ALIGN_HISAT2(
@@ -209,6 +211,8 @@ workflow MERIP {
             ch_bam_mqc = FASTQ_ALIGN_HISAT2.out.stats.collect{it[1]}.ifEmpty(null)
             ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_HISAT2.out.flagstat.collect{it[1]}.ifEmpty(null) )
             ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_HISAT2.out.idxstats.collect{it[1]}.ifEmpty(null) )
+            ch_versions = ch_versions.mix(FASTQ_ALIGN_HISAT2.out.versions.first())
+            ch_flagstat =  FASTQ_ALIGN_HISAT2.out.flagstat
             break
         case "bwa" :
             FASTQ_ALIGN_BWA(
@@ -221,6 +225,8 @@ workflow MERIP {
             ch_bam_mqc = FASTQ_ALIGN_BWA.out.stats.collect{it[1]}.ifEmpty(null)
             ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_BWA.out.flagstat.collect{it[1]}.ifEmpty(null) )
             ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_BWA.out.idxstats.collect{it[1]}.ifEmpty(null) )
+            ch_versions = ch_versions.mix(FASTQ_ALIGN_BWA.out.versions.first())
+            ch_flagstat =  FASTQ_ALIGN_BWA.out.flagstat
             break
         case "bowtie2" :
             FASTQ_ALIGN_BOWTIE2(
@@ -234,19 +240,103 @@ workflow MERIP {
             ch_bam_mqc = FASTQ_ALIGN_BOWTIE2.out.stats.collect{it[1]}.ifEmpty(null)
             ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_BOWTIE2.out.flagstat.collect{it[1]}.ifEmpty(null) )
             ch_bam_mqc = ch_bam_mqc.mix( FASTQ_ALIGN_BOWTIE2.out.idxstats.collect{it[1]}.ifEmpty(null) )
+            ch_versions = ch_versions.mix(FASTQ_ALIGN_BOWTIE2.out.versions.first())
+            ch_flagstat =  FASTQ_ALIGN_BOWTIE2.out.flagstat
             break
     }
 
 
     //
-    // MODULE: BedGraph coverage tracks: scale factor -> genomecov -> sort -> bedgraphtobigwig
+    // BedGraph coverage tracks: scale factor -> genomecov -> sort -> bedgraphtobigwig
     //
+    //
+    // MODULE: calculate scale factor
+    //
+    if (params.spikein_fasta) { // coverage of spikein
+        SUBREAD_FEATURECOUNTS (
+            ch_bam_bai.map{[it[0], it[1]]}.combine(PREPARE_GENOME.out.gtf)
+        )
+        ch_versions = ch_versions.mix(SUBREAD_FEATURECOUNTS.out.versions.first())
+        counts = SUBREAD_FEATURECOUNTS.out.counts.map{
+            def spkin_sum = 0
+            it[1].readLines().findAll{ it =~ /_gene/ }.each{ spkin_sum += it.tokenize()[6].toInteger() }
+            //[ it[0], spkin_sum ]
+            [ it[0], 1 ]
+        }
+    } else {
+        counts = ch_flagstat.map{
+            def fields_mapped = it[1].readLines().find{it =~ /[0-9] mapped \(/}.tokenize()
+            //[ it[0], fields_mapped[0] ]
+            [ it[0], 1 ]
+        }
+    }
+    counts.view()
+    counts = counts.filter{it[1].toInteger()>0}
+    counts.view{"filterd: "+it[1]}
+    // min / total reads is the scale factor
+    min_cnt = counts.map{[it[1].toInteger()]}.collect().map{
+      it.min()
+    }
+    scale_factor = counts.combine(min_cnt).map{
+        meta, counts, min_counts ->
+            factor = min_counts/counts.toInteger()
+            [meta, factor]
+    }
+    //
+    // MODULE: deepTools matrix generation for plotting
+    //
+    BEDTOOLS_GENOMECOV(
+        ch_bam_bai.map{[it[0], it[1]]}.combine(scale_factor, by:0),
+        PREPARE_GENOME.out.chrom_sizes,
+        "bedgraph"
+    )
+    ch_versions = ch_versions.mix(BEDTOOLS_GENOMECOV.out.versions.first())
+    //
+    // MODULE: fort the bedgraph
+    //
+    BEDTOOLS_SORT(
+        BEDTOOLS_GENOMECOV.out.genomecov,
+        []
+    )
+    ch_versions = ch_versions.mix(BEDTOOLS_SORT.out.versions.first())
+    //
+    // MODULE: convert the bedGraph to bigWig
+    //
+    BEDGRAPH_BEDCLIP_BEDGRAPHTOBIGWIG(
+        BEDTOOLS_SORT.out.sorted,
+        PREPARE_GENOME.out.chrom_sizes
+    )
+    ch_versions = ch_versions.mix(BEDGRAPH_BEDCLIP_BEDGRAPHTOBIGWIG.out.versions.first())
 
     //
     // MODULE: deepTools profile: computematrix -> plotprofile -> plotheatmap
     //
     if (!params.skip_plot_profile) {
+        //
+        // MODULE: deepTools matrix generation for plotting
+        //
+        DEEPTOOLS_COMPUTEMATRIX (
+            BEDGRAPH_BEDCLIP_BEDGRAPHTOBIGWIG.out.bigwig,
+            PREPARE_GENOME.out.gene_bed
+        )
+        ch_versions = ch_versions.mix(DEEPTOOLS_COMPUTEMATRIX.out.versions.first())
 
+        //
+        // MODULE: deepTools profile plots
+        //
+        DEEPTOOLS_PLOTPROFILE (
+            DEEPTOOLS_COMPUTEMATRIX.out.matrix
+        )
+        ch_deeptoolsplotprofile_multiqc = DEEPTOOLS_PLOTPROFILE.out.table
+        ch_versions = ch_versions.mix(DEEPTOOLS_PLOTPROFILE.out.versions.first())
+
+        //
+        // MODULE: deepTools heatmaps
+        //
+        DEEPTOOLS_PLOTHEATMAP (
+            DEEPTOOLS_COMPUTEMATRIX.out.matrix
+        )
+        ch_versions = ch_versions.mix(DEEPTOOLS_PLOTHEATMAP.out.versions.first())
     }
 
     //

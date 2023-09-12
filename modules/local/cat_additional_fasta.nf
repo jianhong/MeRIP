@@ -31,7 +31,7 @@ process CAT_ADDITIONAL_FASTA {
         $biotype_name \\
         $add_fasta
 
-    cat $fasta $add_fasta > ${name}.fasta
+    cat $fasta $add_fasta | tr -d '\\r' > ${name}.fasta
     cat $gtf ${add_fasta.baseName}.gtf > ${name}.gtf
 
     cat <<-END_VERSIONS > versions.yml

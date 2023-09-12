@@ -27,6 +27,7 @@ include { GTF2BED                              } from '../../modules/local/gtf2b
 include { PREPROCESS_TRANSCRIPTS_FASTA_GENCODE } from '../../modules/local/preprocess_transcripts_fasta_gencode'
 include { CAT_ADDITIONAL_FASTA                 } from '../../modules/local/cat_additional_fasta'
 include { GTF_GENE_FILTER                      } from '../../modules/local/gtf_gene_filter'
+include { STAR_GENOME_CHECK                    } from '../../modules/local/star_genome_check'
 include { STAR_GENOMEGENERATE_IGENOMES         } from '../../modules/local/star_genomegenerate_igenomes'
 
 workflow PREPARE_GENOME {
@@ -134,6 +135,7 @@ workflow PREPARE_GENOME {
     // Uncompress STAR index or generate from scratch if required
     //
     // Check if an AWS iGenome has been provided to use the appropriate version of STAR
+    //
     is_aws_igenome = false
     if (params.fasta && params.gtf) {
         if ((file(params.fasta).getName() - '.gz' == 'genome.fa') && (file(params.gtf).getName() - '.gz' == 'genes.gtf')) {
@@ -142,7 +144,9 @@ workflow PREPARE_GENOME {
     }
     ch_star_index = Channel.empty()
     if ('star' == params.aligner) {
-        if (params.star_index) {
+        // check index version
+        compatible_star_index = STAR_GENOME_CHECK(Channel.value(file(params.star_index))).compatable
+        if (params.star_index && "$compatible_star_index" == 'yes') {
             if (params.star_index.endsWith('.tar.gz')) {
                 ch_star_index = UNTAR_STAR_INDEX ( [ [:], params.star_index ] ).untar.map { it[1] }
                 ch_versions   = ch_versions.mix(UNTAR_STAR_INDEX.out.versions)
@@ -154,7 +158,7 @@ workflow PREPARE_GENOME {
                 ch_star_index = STAR_GENOMEGENERATE_IGENOMES ( ch_fasta, ch_gtf ).index
                 ch_versions   = ch_versions.mix(STAR_GENOMEGENERATE_IGENOMES.out.versions)
             } else {
-                ch_star_index = STAR_GENOMEGENERATE ( ch_fasta, ch_gtf ).index
+                ch_star_index = STAR_GENOMEGENERATE ( ch_fasta.map{[ [:], it ]}, ch_gtf.map{[ [:], it ]} ).index.map{ it[1] }
                 ch_versions   = ch_versions.mix(STAR_GENOMEGENERATE.out.versions)
             }
         }
@@ -200,7 +204,7 @@ workflow PREPARE_GENOME {
         }
     } else {
         if ('bowtie2' == params.aligner) {
-            ch_bowtie2_index = BOWTIE2_BUILD ( ch_fasta.map{ [[:], it] }, ch_transcript_fasta ).index
+            ch_bowtie2_index = BOWTIE2_BUILD ( ch_fasta.map{ [[:], it] }, ch_transcript_fasta ).index.map{ it[1] }
             ch_versions     = ch_versions.mix(BOWTIE2_INDEX.out.versions)
         }
     }
@@ -214,7 +218,7 @@ workflow PREPARE_GENOME {
         ch_bwa_index = Channel.value(file(params.bwa_index))
     } else {
         if ('bwa' == params.aligner) {
-            ch_bwa_index = BWA_INDEX ( ch_fasta.map{ [[:], it] } ).index
+            ch_bwa_index = BWA_INDEX ( ch_fasta.map{ [[:], it] } ).index.map{ it[1] }
             ch_versions     = ch_versions.mix(BWA_INDEX.out.versions)
         }
     }

@@ -170,10 +170,20 @@
                         "git_sha": "cc08a888069f67cab8120259bddab8032d4c0fe3",
                         "installed_by": ["modules"]
                     },
+                    "subread/featurecounts": {
+                        "branch": "master",
+                        "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
+                        "installed_by": ["modules"]
+                    },
+                    "ucsc/bedclip": {
+                        "branch": "master",
+                        "git_sha": "240937a2a9c30298110753292be041188891f2cb",
+                        "installed_by": ["bedgraph_bedclip_bedgraphtobigwig"]
+                    },
                     "ucsc/bedgraphtobigwig": {
                         "branch": "master",
                         "git_sha": "66290981ab6038ea86177ade40b9449bc790b0ce",
-                        "installed_by": ["modules"]
+                        "installed_by": ["modules", "bedgraph_bedclip_bedgraphtobigwig"]
                     },
                     "ucsc/gtftogenepred": {
                         "branch": "master",
@@ -204,6 +214,11 @@
                         "branch": "master",
                         "git_sha": "dedc0e31087f3306101c38835d051bf49789445a",
                         "installed_by": ["bam_sort_stats_samtools"]
+                    },
+                    "bedgraph_bedclip_bedgraphtobigwig": {
+                        "branch": "master",
+                        "git_sha": "dedc0e31087f3306101c38835d051bf49789445a",
+                        "installed_by": ["subworkflows"]
                     },
                     "fastq_align_bowtie2": {
                         "branch": "master",
