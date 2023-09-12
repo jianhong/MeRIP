@@ -110,6 +110,8 @@ workflow MERIP {
         .fromSamplesheet("input")
         .map {
             meta, fastq_1, fastq_2 ->
+                group = meta.group.toString().replaceAll("\\.", "_")
+                meta_copy = meta - meta.subMap(['id', 'group']) + [id: group + "_REP" + meta.replicate, group: group ]
                 if (!fastq_2) {
                     return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
                 } else {
