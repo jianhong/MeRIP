@@ -4,8 +4,6 @@
     jianhong/merip
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Github : https://github.com/jianhong/merip
-    Website: https://nf-co.re/merip
-    Slack  : https://nfcore.slack.com/channels/merip
 ----------------------------------------------------------------------------------------
 */
 
