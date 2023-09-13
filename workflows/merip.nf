@@ -113,9 +113,9 @@ workflow MERIP {
                 group = meta.group.toString().replaceAll("\\.", "_")
                 meta_copy = meta - meta.subMap(['id', 'group']) + [id: group + "_REP" + meta.replicate, group: group ]
                 if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+                    return [ meta_copy.id, meta_copy + [ single_end:true ], [ fastq_1 ] ]
                 } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+                    return [ meta_copy.id, meta_copy + [ single_end:false ], [ fastq_1, fastq_2 ] ]
                 }
         }
         .groupTuple()
