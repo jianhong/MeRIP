@@ -145,8 +145,14 @@ workflow PREPARE_GENOME {
     ch_star_index = Channel.empty()
     if ('star' == params.aligner) {
         // check index version
-        compatible_star_index = STAR_GENOME_CHECK(Channel.value(file(params.star_index))).compatable
-        if (params.star_index && "$compatible_star_index" == 'yes') {
+        is_compatible_star_index = false
+        if (params.star_index) {
+            compatible_star_index = STAR_GENOME_CHECK(Channel.value(file(params.star_index))).compatable
+            if ("$compatible_star_index" == 'yes') {
+                is_compatible_star_index = true
+            }
+        }
+        if (is_compatible_star_index) {
             if (params.star_index.endsWith('.tar.gz')) {
                 ch_star_index = UNTAR_STAR_INDEX ( [ [:], params.star_index ] ).untar.map { it[1] }
                 ch_versions   = ch_versions.mix(UNTAR_STAR_INDEX.out.versions)

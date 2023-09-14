@@ -260,7 +260,7 @@ workflow MERIP {
         )
         ch_versions = ch_versions.mix(SUBREAD_FEATURECOUNTS.out.versions.first())
         counts = SUBREAD_FEATURECOUNTS.out.counts.map{
-            def spkin_sum = 0
+            def spkin_sum = 1
             it[1].readLines().findAll{ it =~ /_gene/ }.each{ spkin_sum += it.tokenize()[6].toInteger() }
             //[ it[0], spkin_sum ]
             [ it[0], 1 ]
@@ -268,15 +268,13 @@ workflow MERIP {
     } else {
         counts = ch_flagstat.map{
             def fields_mapped = it[1].readLines().find{it =~ /[0-9] mapped \(/}.tokenize()
-            //[ it[0], fields_mapped[0] ]
+            //[ it[0], fields_mapped[0].toInteger() + 1 ]
             [ it[0], 1 ]
         }
     }
     counts.view()
-    counts = counts.filter{it[1].toInteger()>0}
-    counts.view{"filterd: "+it[1]}
     // min / total reads is the scale factor
-    min_cnt = counts.map{[it[1].toInteger()]}.collect().map{
+    min_cnt = counts.map{[it[1]]}.collect().map{
       it.min()
     }
     scale_factor = counts.combine(min_cnt).map{
