@@ -1,3 +1,5 @@
-group,replicate,fastq_1,fastq_2
-SAMPLE_PAIRED_END,1,/path/to/fastq/files/AEG588A1_S1_L002_R1_001.fastq.gz,/path/to/fastq/files/AEG588A1_S1_L002_R2_001.fastq.gz
-SAMPLE_SINGLE_END,1,/path/to/fastq/files/AEG588A4_S4_L003_R1_001.fastq.gz,
+group,replicate,fastq_1,fastq_2,control
+DMSO,1,https://dusom-cellbio.eso.duhs.duke.edu/dusom-cellbio-regeneromics-public/merip_test_data/chr22_DMSO_REP1_R1.fastq.gz,https://dusom-cellbio.eso.duhs.duke.edu/dusom-cellbio-regeneromics-public/merip_test_data/chr22_DMSO_REP1_R2.fastq.gz,DMSO_input
+DMSO,2,https://dusom-cellbio.eso.duhs.duke.edu/dusom-cellbio-regeneromics-public/merip_test_data/chr22_DMSO_REP2_R1.fastq.gz,https://dusom-cellbio.eso.duhs.duke.edu/dusom-cellbio-regeneromics-public/merip_test_data/chr22_DMSO_REP2_R2.fastq.gz,DMSO_input
+DMSO_input,1,https://dusom-cellbio.eso.duhs.duke.edu/dusom-cellbio-regeneromics-public/merip_test_data/chr22_DMSO_input_REP1_R1.fastq.gz,https://dusom-cellbio.eso.duhs.duke.edu/dusom-cellbio-regeneromics-public/merip_test_data/chr22_DMSO_input_REP1_R2.fastq.gz,
+DMSO_input,2,https://dusom-cellbio.eso.duhs.duke.edu/dusom-cellbio-regeneromics-public/merip_test_data/chr22_DMSO_input_REP2_R1.fastq.gz,https://dusom-cellbio.eso.duhs.duke.edu/dusom-cellbio-regeneromics-public/merip_test_data/chr22_DMSO_input_REP2_R2.fastq.gz,
