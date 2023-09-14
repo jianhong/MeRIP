@@ -295,7 +295,7 @@ workflow MERIP {
     // MODULE: fort the bedgraph
     //
     BEDTOOLS_SORT(
-        BEDTOOLS_GENOMECOV.out.genomecov,
+        BEDTOOLS_GENOMECOV.out.genomecov.filter{it[1].readLines().size()>1},
         []
     )
     ch_versions = ch_versions.mix(BEDTOOLS_SORT.out.versions.first())
