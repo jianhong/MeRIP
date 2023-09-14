@@ -6,7 +6,6 @@ include { GUNZIP as GUNZIP_FASTA            } from '../../modules/nf-core/gunzip
 include { GUNZIP as GUNZIP_GTF              } from '../../modules/nf-core/gunzip/main'
 include { GUNZIP as GUNZIP_GFF              } from '../../modules/nf-core/gunzip/main'
 include { GUNZIP as GUNZIP_GENE_BED         } from '../../modules/nf-core/gunzip/main'
-include { GUNZIP as GUNZIP_TRANSCRIPT_FASTA } from '../../modules/nf-core/gunzip/main'
 include { GUNZIP as GUNZIP_SPIKEIN_FASTA    } from '../../modules/nf-core/gunzip/main'
 
 include { UNTAR as UNTAR_STAR_INDEX         } from '../../modules/nf-core/untar/main'
@@ -20,15 +19,12 @@ include { HISAT2_EXTRACTSPLICESITES         } from '../../modules/nf-core/hisat2
 include { HISAT2_BUILD                      } from '../../modules/nf-core/hisat2/build/main'
 include { BOWTIE2_BUILD                     } from '../../modules/nf-core/bowtie2/build/main'
 include { BWA_INDEX                         } from '../../modules/nf-core/bwa/index/main'
-include { RSEM_PREPAREREFERENCE             } from '../../modules/nf-core/rsem/preparereference/main'
 include { KHMER_UNIQUEKMERS                 } from '../../modules/nf-core/khmer/uniquekmers/main'
 
-include { GTF2BED                              } from '../../modules/local/gtf2bed'
-include { PREPROCESS_TRANSCRIPTS_FASTA_GENCODE } from '../../modules/local/preprocess_transcripts_fasta_gencode'
-include { CAT_ADDITIONAL_FASTA                 } from '../../modules/local/cat_additional_fasta'
-include { GTF_GENE_FILTER                      } from '../../modules/local/gtf_gene_filter'
-include { STAR_GENOME_CHECK                    } from '../../modules/local/star_genome_check'
-include { STAR_GENOMEGENERATE_IGENOMES         } from '../../modules/local/star_genomegenerate_igenomes'
+include { GTF2BED                           } from '../../modules/local/gtf2bed'
+include { CAT_ADDITIONAL_FASTA              } from '../../modules/local/cat_additional_fasta'
+include { STAR_GENOME_CHECK                 } from '../../modules/local/star_genome_check'
+include { STAR_GENOMEGENERATE_IGENOMES      } from '../../modules/local/star_genomegenerate_igenomes'
 
 workflow PREPARE_GENOME {
     main:
@@ -97,30 +93,6 @@ workflow PREPARE_GENOME {
         ch_gene_bed = GTF2BED ( ch_gtf ).bed
         ch_versions = ch_versions.mix(GTF2BED.out.versions)
     }
-
-
-    //
-    // Uncompress transcript fasta file / create if required
-    //
-    if (params.transcript_fasta) {
-        if (params.transcript_fasta.endsWith('.gz')) {
-            ch_transcript_fasta = GUNZIP_TRANSCRIPT_FASTA ( [ [:], params.transcript_fasta ] ).gunzip.map { it[1] }
-            ch_versions         = ch_versions.mix(GUNZIP_TRANSCRIPT_FASTA.out.versions)
-        } else {
-            ch_transcript_fasta = Channel.value(file(params.transcript_fasta))
-        }
-        if (params.gencode) {
-            PREPROCESS_TRANSCRIPTS_FASTA_GENCODE ( ch_transcript_fasta )
-            ch_transcript_fasta = PREPROCESS_TRANSCRIPTS_FASTA_GENCODE.out.fasta
-            ch_versions         = ch_versions.mix(PREPROCESS_TRANSCRIPTS_FASTA_GENCODE.out.versions)
-        }
-    } else {
-        ch_filter_gtf       = GTF_GENE_FILTER ( ch_fasta, ch_gtf ).gtf
-        ch_transcript_fasta = RSEM_PREPAREREFERENCE ( ch_fasta, ch_filter_gtf ).transcript_fasta
-        ch_versions         = ch_versions.mix(GTF_GENE_FILTER.out.versions)
-        ch_versions         = ch_versions.mix(RSEM_PREPAREREFERENCE.out.versions)
-    }
-
 
     //
     // Create chromosome sizes file
@@ -198,7 +170,7 @@ workflow PREPARE_GENOME {
 
 
     //
-    // Uncompress tophat2 index or generate from scratch if required
+    // Uncompress bowtie2 index or generate from scratch if required
     //
     ch_bowtie2_index = Channel.empty()
     if (params.bowtie2_index) {
@@ -210,7 +182,7 @@ workflow PREPARE_GENOME {
         }
     } else {
         if ('bowtie2' == params.aligner) {
-            ch_bowtie2_index = BOWTIE2_BUILD ( ch_fasta.map{ [[:], it] }, ch_transcript_fasta ).index.map{ it[1] }
+            ch_bowtie2_index = BOWTIE2_BUILD ( ch_fasta ).index.map{ it[1] }
             ch_versions     = ch_versions.mix(BOWTIE2_INDEX.out.versions)
         }
     }

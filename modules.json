@@ -125,11 +125,6 @@
                         "git_sha": "f2d63bd5b68925f98f572eed70993d205cc694b7",
                         "installed_by": ["modules"]
                     },
-                    "rsem/preparereference": {
-                        "branch": "master",
-                        "git_sha": "603ecbd9f45300c9788f197d2a15a005685b4220",
-                        "installed_by": ["modules"]
-                    },
                     "samtools/flagstat": {
                         "branch": "master",
                         "git_sha": "570ec5bcfe19c49e16c9ca35a7a116563af6cc1c",
