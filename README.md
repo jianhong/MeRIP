@@ -78,7 +78,7 @@ nextflow run jianhong/merip \
 > provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_;
 > see [docs](https://nf-co.re/usage/configuration#custom-configuration-files).
 
-For more details and further functionality, please refer to the [usage documentation](https://nf-co.re/merip/usage) and the [parameter documentation](https://nf-co.re/merip/parameters).
+For more details and further functionality, please refer to the [usage documentation](docs/usage.md) and the [parameter documentation](nextflow_schema.json).
 
 ## Pipeline output
 
