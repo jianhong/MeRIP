@@ -90,10 +90,6 @@ For more details about the output files and reports, please refer to the
 
 jianhong/merip was originally written by jianhong.
 
-We thank the following people for their extensive assistance in the development of this pipeline:
-
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
-
 ## Contributions and Support
 
 If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md).
