@@ -52,6 +52,8 @@ ch_frip_score_header       = file("$projectDir/assets/multiqc/frip_score_header.
 //
 include { FRIP_SCORE                  } from '../modules/local/frip_score'
 include { MULTIQC_CUSTOM_PEAKS        } from '../modules/local/multiqc_custom_peaks'
+include { BIOC_CHIPPEAKANNO           } from '../modules/local/chippeakanno'
+include { BIOC_DIFFBIND               } from '../modules/local/diffbind'
 
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
@@ -67,23 +69,23 @@ include { PREPARE_GENOME              } from '../subworkflows/local/prepare_geno
 //
 // MODULE: Installed directly from nf-core/modules
 //
-include { BEDTOOLS_GENOMECOV          } from '../modules/nf-core/bedtools/genomecov/main'
-include { BEDTOOLS_SORT               } from '../modules/nf-core/bedtools/sort/main'
 include { CAT_FASTQ                   } from '../modules/nf-core/cat/fastq/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { DEEPTOOLS_BAMCOVERAGE       } from '../modules/nf-core/deeptools/bamcoverage/main'
 include { DEEPTOOLS_COMPUTEMATRIX     } from '../modules/nf-core/deeptools/computematrix/main'
 include { DEEPTOOLS_PLOTPROFILE       } from '../modules/nf-core/deeptools/plotprofile/main'
 include { DEEPTOOLS_PLOTHEATMAP       } from '../modules/nf-core/deeptools/plotheatmap/main'
 include { DEEPTOOLS_PLOTFINGERPRINT   } from '../modules/nf-core/deeptools/plotfingerprint/main'
 include { MACS2_CALLPEAK              } from '../modules/nf-core/macs2/callpeak/main'
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
+include { SAMTOOLS_MERGE              } from '../modules/nf-core/samtools/merge/main'
 include { SORTMERNA                   } from '../modules/nf-core/sortmerna/main'
 include { SUBREAD_FEATURECOUNTS       } from '../modules/nf-core/subread/featurecounts/main'
 
 //
 // SUBWORKFLOW: Installed directly from nf-core/modules
 //
-include { BEDGRAPH_BEDCLIP_BEDGRAPHTOBIGWIG } from '../subworkflows/nf-core/bedgraph_bedclip_bedgraphtobigwig/main'
+include { BAM_SORT_STATS_SAMTOOLS           } from '../subworkflows/nf-core/bam_sort_stats_samtools/main'
 include { FASTQ_TRIM_FASTP_FASTQC           } from '../subworkflows/nf-core/fastq_trim_fastp_fastqc/main'
 include { FASTQ_ALIGN_STAR                  } from '../subworkflows/nf-core/fastq_align_star/main'
 include { FASTQ_ALIGN_HISAT2                } from '../subworkflows/nf-core/fastq_align_hisat2/main'
@@ -128,8 +130,6 @@ workflow MERIP {
                     return [ meta, fastqs.flatten() ]
         }
         .set { ch_fastq }
-    ch_fastq.single.view()
-    ch_fastq.multiple.view()
 
     //
     // MODULE: Concatenate FastQ files from same sample if required
@@ -247,66 +247,38 @@ workflow MERIP {
             break
     }
 
+    //
+    // MODULE: merge bam files
+    //
+    ch_bam_bai
+        .map{
+            meta, bam, bai ->
+            [[group:meta.group, control:meta.control], bam, bai]
+        }
+        .groupTuple()
+        .map{
+          meta, bams, bais ->
+          [[id:meta.group, group:meta.group, control:meta.control], bams, bais]
+        }
+        .set{ ch_grouped_bam_bai }
+
+    SAMTOOLS_MERGE(
+        ch_grouped_bam_bai.map{[it[0], it[1]]},
+        PREPARE_GENOME.out.fasta.map{[[:], it]},
+        PREPARE_GENOME.out.fai.map{[[:], it]},
+    )
+    ch_versions = ch_versions.mix(SAMTOOLS_MERGE.out.versions.first())
+
+    BAM_SORT_STATS_SAMTOOLS(SAMTOOLS_MERGE.out.bam, PREPARE_GENOME.out.fasta.map{[[:], it]})
+    ch_merged_bam_bai = BAM_SORT_STATS_SAMTOOLS.out.bam.join(BAM_SORT_STATS_SAMTOOLS.out.bai, by:[0])
+    ch_versions = ch_versions.mix(BAM_SORT_STATS_SAMTOOLS.out.versions.first())
+
+    ch_bam_bai.concat(ch_merged_bam_bai).set{ch_ori_merged_bam_bai}
 
     //
-    // BedGraph coverage tracks: scale factor -> genomecov -> sort -> bedgraphtobigwig
+    // MODULE: deepTools Create bigwigs
     //
-    //
-    // MODULE: calculate scale factor
-    //
-    if (params.spikein_fasta) { // coverage of spikein
-        SUBREAD_FEATURECOUNTS (
-            ch_bam_bai.map{[it[0], it[1]]}.combine(PREPARE_GENOME.out.gtf)
-        )
-        ch_versions = ch_versions.mix(SUBREAD_FEATURECOUNTS.out.versions.first())
-        counts = SUBREAD_FEATURECOUNTS.out.counts.map{
-            def spkin_sum = 1
-            it[1].readLines().findAll{ it =~ /_gene/ }.each{ spkin_sum += it.tokenize()[6].toInteger() }
-            //[ it[0], spkin_sum ]
-            [ it[0], 1 ]
-        }
-    } else {
-        counts = ch_flagstat.map{
-            def fields_mapped = it[1].readLines().find{it =~ /[0-9] mapped \(/}.tokenize()
-            //[ it[0], fields_mapped[0].toInteger() + 1 ]
-            [ it[0], 1 ]
-        }
-    }
-    counts.view()
-    // min / total reads is the scale factor
-    min_cnt = counts.map{[it[1]]}.collect().map{
-      it.min()
-    }
-    scale_factor = counts.combine(min_cnt).map{
-        meta, counts, min_counts ->
-            factor = min_counts/counts.toInteger()
-            [meta, factor]
-    }
-    //
-    // MODULE: deepTools matrix generation for plotting
-    //
-    BEDTOOLS_GENOMECOV(
-        ch_bam_bai.map{[it[0], it[1]]}.combine(scale_factor, by:0),
-        PREPARE_GENOME.out.chrom_sizes,
-        "bedgraph"
-    )
-    ch_versions = ch_versions.mix(BEDTOOLS_GENOMECOV.out.versions.first())
-    //
-    // MODULE: fort the bedgraph
-    //
-    BEDTOOLS_SORT(
-        BEDTOOLS_GENOMECOV.out.genomecov.filter{it[1].readLines().size()>1},
-        []
-    )
-    ch_versions = ch_versions.mix(BEDTOOLS_SORT.out.versions.first())
-    //
-    // MODULE: convert the bedGraph to bigWig
-    //
-    BEDGRAPH_BEDCLIP_BEDGRAPHTOBIGWIG(
-        BEDTOOLS_SORT.out.sorted,
-        PREPARE_GENOME.out.chrom_sizes
-    )
-    ch_versions = ch_versions.mix(BEDGRAPH_BEDCLIP_BEDGRAPHTOBIGWIG.out.versions.first())
+    DEEPTOOLS_BAMCOVERAGE(ch_ori_merged_bam_bai, PREPARE_GENOME.out.fasta, PREPARE_GENOME.out.fai)
 
     //
     // MODULE: deepTools profile: computematrix -> plotprofile -> plotheatmap
@@ -316,7 +288,7 @@ workflow MERIP {
         // MODULE: deepTools matrix generation for plotting
         //
         DEEPTOOLS_COMPUTEMATRIX (
-            BEDGRAPH_BEDCLIP_BEDGRAPHTOBIGWIG.out.bigwig,
+            DEEPTOOLS_BAMCOVERAGE.out.bigwig,
             PREPARE_GENOME.out.gene_bed
         )
         ch_versions = ch_versions.mix(DEEPTOOLS_COMPUTEMATRIX.out.versions.first())
@@ -342,13 +314,12 @@ workflow MERIP {
     //
     // MODULE: Peak calling and QC
     //
-    ch_bam_bai
+    ch_merged_bam_bai
         .map{
             meta, bam, bai ->
-                meta.control ? null : [ meta.id, [ bam ] , [ bai ] ]
+                meta.control ? null : [ meta.group, [ bam ] , [ bai ] ]
         }.set { ch_control_bam_bai }
-
-    ch_bam_bai
+    ch_ori_merged_bam_bai
         .map{
             meta, bam, bai ->
                 meta.control ? [ meta.control, meta, [ bam ] , [ bai ] ] : null
@@ -361,13 +332,13 @@ workflow MERIP {
     // MODULE: deepTools plotFingerprint joint QC for IP and control
     //
     ch_deeptoolsplotfingerprint_multiqc = Channel.empty()
-    if (!params.skip_plot_fingerprint) {
+    /*if (!params.skip_plot_fingerprint) {
         DEEPTOOLS_PLOTFINGERPRINT (
             ch_ip_control_bam_bai
         )
         ch_deeptoolsplotfingerprint_multiqc = DEEPTOOLS_PLOTFINGERPRINT.out.matrix
         ch_versions = ch_versions.mix(DEEPTOOLS_PLOTFINGERPRINT.out.versions.first())
-    }
+    }*/
 
     //
     // MODULE: Peak calling by MACS2
@@ -431,6 +402,15 @@ workflow MERIP {
         ch_frip_score_header
     )
 
+    //
+    // MODULE: annotation by ChIPpeakAnno
+    //
+    if( !params.skip_annotation ){
+        BIOC_CHIPPEAKANNO (
+            ch_macs2_peaks.map{it[1]}.collect().map{[[id:'anno'], it]},
+            PREPARE_GENOME.out.gtf
+        )
+    }
 
     //
     // prepare the software version yaml files
@@ -453,11 +433,11 @@ workflow MERIP {
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
     //ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQ_TRIM_FASTP_FASTQC.out.fastqc_raw_zip.collect{it[1]}.ifEmpty(null))
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQ_TRIM_FASTP_FASTQC.out.fastqc_trim_zip.collect{it[1]}.ifEmpty(null))
+    ch_multiqc_files = ch_multiqc_files.mix(FASTQ_TRIM_FASTP_FASTQC.out.fastqc_raw_zip.collect{it[1]}.ifEmpty([]))
+    ch_multiqc_files = ch_multiqc_files.mix(FASTQ_TRIM_FASTP_FASTQC.out.fastqc_trim_zip.collect{it[1]}.ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(ch_bam_mqc)
-    ch_multiqc_files = ch_multiqc_files.mix(MULTIQC_CUSTOM_PEAKS.out.count.collect{it[1]}.ifEmpty(null))
-    ch_multiqc_files = ch_multiqc_files.mix(MULTIQC_CUSTOM_PEAKS.out.frip.collect{it[1]}.ifEmpty(null))
+    ch_multiqc_files = ch_multiqc_files.mix(MULTIQC_CUSTOM_PEAKS.out.count.collect{it[1]}.ifEmpty([]))
+    ch_multiqc_files = ch_multiqc_files.mix(MULTIQC_CUSTOM_PEAKS.out.frip.collect{it[1]}.ifEmpty([]))
 
 
     MULTIQC (

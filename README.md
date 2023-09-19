@@ -37,9 +37,7 @@
 7. Call broad/narrow peaks ([`MACS2`](https://github.com/macs3-project/MACS))
 8. Calculate FRiP score
 9. Annotate peaks relative to gene features ([`ChIPpeakAnno`](https://bioconductor.org/packages/release/bioc/html/ChIPpeakAnno.html))
-10. Differential analysis ([`DiffBind`](https://bioconductor.org/packages/release/bioc/html/DiffBind.html)).
-11. Create IGV session file containing bigWig tracks, peaks and differential sites for data visualisation ([`IGV`](https://software.broadinstitute.org/software/igv/)).
-12. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+10. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
 
 ## Usage
 

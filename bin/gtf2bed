@@ -45,6 +45,9 @@ while (<IN>) {
         ($id) = $f[8]=~ /\bID="([^"]+)"/;
         # most ver 3's stick unquoted names in the name field
         ($id) = $f[8]=~ /\bName=([^";]+)/ if !$id && $gff == 3;
+        if( ! defined $id || $id eq '' ) {
+          ($id) = $f[8]=~ /transcript_id "([^"]+)"/;
+        }
     } else {
         ($id) = $f[8]=~ /transcript_id "([^"]+)"/;
     }

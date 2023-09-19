@@ -307,6 +307,25 @@
                     "type": "boolean",
                     "fa_icon": "fas fa-save",
                     "description": "Skip the fastp process if true."
+                },
+                "skip_annotation": {
+                    "type": "boolean",
+                    "description": "Skip ChIPpeakAnno annotation.",
+                    "fa_icon": "fas fa-fast-forward"
+                }
+            }
+        },
+        "experiment_related_options": {
+            "title": "Other experiment related options",
+            "type": "object",
+            "fa_icon": "fas fa-chart-area",
+            "description": "Options unclassified.",
+            "properties": {
+                "fragment_size": {
+                    "type": "integer",
+                    "description": "Estimated fragment size used to extend single-end reads. This parameter is used by deeptools::plotfingerprint",
+                    "fa_icon": "fas fa-chart-area",
+                    "default": 200
                 }
             }
         },
@@ -527,6 +546,9 @@
         },
         {
             "$ref": "#/definitions/process_skipping_options"
+        },
+        {
+            "$ref": "#/definitions/experiment_related_options"
         },
         {
             "$ref": "#/definitions/institutional_config_options"
