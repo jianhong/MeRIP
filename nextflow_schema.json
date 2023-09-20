@@ -275,9 +275,20 @@
             "fa_icon": "fas fa-chart-area",
             "description": "Options to adjust peak calling criteria.",
             "properties": {
+                "peak_caller": {
+                    "type": "string",
+                    "description": "Peak caller tool, macs2 or matk. Default is matk.",
+                    "fa_icon": "fas fa-sort-amount-down",
+                    "enum": ["macs2", "matk"]
+                },
                 "macs2_params": {
                     "type": "string",
                     "description": "Parameters used for MACS2",
+                    "fa_icon": "fas fa-sort-amount-down"
+                },
+                "matk_jar": {
+                    "type": "string",
+                    "description": "The matk jar file path.",
                     "fa_icon": "fas fa-sort-amount-down"
                 }
             }

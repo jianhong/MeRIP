@@ -25,6 +25,7 @@ include { GTF2BED                           } from '../../modules/local/gtf2bed'
 include { CAT_ADDITIONAL_FASTA              } from '../../modules/local/cat_additional_fasta'
 include { STAR_GENOME_CHECK                 } from '../../modules/local/star_genome_check'
 include { STAR_GENOMEGENERATE_IGENOMES      } from '../../modules/local/star_genomegenerate_igenomes'
+include { UCSC_FATOTWOBIT                   } from '../../modules/local/ucsc_fatotwobit'
 
 workflow PREPARE_GENOME {
     main:
@@ -211,9 +212,17 @@ workflow PREPARE_GENOME {
             params.read_length
         )
         ch_macs_gsize = KHMER_UNIQUEKMERS.out.kmers.map { it.text.trim() }
+        ch_versions   = ch_versions.mix(KHMER_UNIQUEKMERS.out.versions)
     } else {
         ch_macs_gsize = params.macs_gsize
     }
+
+    //
+    // MODULE: faToTwoBit
+    //
+    ch_2bit = UCSC_FATOTWOBIT(ch_fasta).bit
+    ch_versions   = ch_versions.mix(UCSC_FATOTWOBIT.out.versions)
+
 
     emit:
     fasta            = ch_fasta                  // channel: path(genome.fasta)
@@ -227,6 +236,7 @@ workflow PREPARE_GENOME {
     bowtie2_index    = ch_bowtie2_index          // channel: path(bowtie2/index/)
     bwa_index        = ch_bwa_index              // channel: path(bwa/index/)
     macs_gsize       = ch_macs_gsize             // channel: val(gsize)
+    bit              = ch_2bit                   // channel: path(genome.2bit)
 
     versions         = ch_versions.ifEmpty(null) // channel: [ versions.yml ]
 }

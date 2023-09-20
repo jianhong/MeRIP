@@ -41,6 +41,7 @@ ch_multiqc_custom_methods_description = params.multiqc_methods_description ? fil
 ch_peak_count_header       = file("$projectDir/assets/multiqc/peak_count_header.txt", checkIfExists: true)
 ch_frip_score_header       = file("$projectDir/assets/multiqc/frip_score_header.txt", checkIfExists: true)
 
+ch_matk_jar                = Channel.value(file(params.matk_jar))
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT LOCAL MODULES/SUBWORKFLOWS
@@ -53,6 +54,9 @@ ch_frip_score_header       = file("$projectDir/assets/multiqc/frip_score_header.
 include { FRIP_SCORE                  } from '../modules/local/frip_score'
 include { MULTIQC_CUSTOM_PEAKS        } from '../modules/local/multiqc_custom_peaks'
 include { BIOC_CHIPPEAKANNO           } from '../modules/local/chippeakanno'
+include { MATK_PEAKCALLING            } from '../modules/local/matk/peakcalling'
+include { MATK_SINGLENUCLEOTIDE       } from '../modules/local/matk/singlenucleotide'
+include { MATK_QUANTIFICATION         } from '../modules/local/matk/quantification'
 
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
@@ -247,6 +251,16 @@ workflow MERIP {
     }
 
     //
+    // MODULE: featurecounts
+    //
+    if (params.spikein_fasta) { // coverage of spikein
+        SUBREAD_FEATURECOUNTS (
+            ch_bam_bai.map{[it[0], it[1]]}.combine(PREPARE_GENOME.out.gtf)
+        )
+        ch_versions = ch_versions.mix(SUBREAD_FEATURECOUNTS.out.versions.first())
+    }
+
+    //
     // MODULE: merge bam files
     //
     ch_bam_bai
@@ -327,6 +341,20 @@ workflow MERIP {
         .map { [ it[1] , it[2] + it[4], it[3] + it[5] ] }
         .set { ch_ip_control_bam_bai }
 
+    ch_grouped_bam_bai
+        .map{
+            meta, bam, bai ->
+                meta.control ? null : [ meta.group, bam, bai ]
+        }.set{ ch_grouped_control_bam_bai }
+    ch_grouped_bam_bai
+        .map{
+            meta, bam, bai ->
+                meta.control ? [meta.control, meta, bam, bai ] : null
+        }
+        .combine(ch_grouped_control_bam_bai, by:0)
+        .map { [ it[1], it[2], it[4] ] }
+        .set { ch_grouped_ip_control_bam }
+
     //
     // MODULE: deepTools plotFingerprint joint QC for IP and control
     //
@@ -348,33 +376,67 @@ workflow MERIP {
                 [ meta , bams[0], bams[1] ]
         }
         .set { ch_ip_control_bam }
+    switch( params.peak_caller ){ // "macs2", "matk"
+        case 'macs2':
+            MACS2_CALLPEAK (
+                ch_ip_control_bam,
+                PREPARE_GENOME.out.macs_gsize
+            )
+            ch_called_peaks = MACS2_CALLPEAK.out.peak
+                .filter {
+                    meta, peaks ->
+                        peaks.size() > 0
+                }
+            ch_versions = ch_versions.mix(MACS2_CALLPEAK.out.versions.first())
+            break
+        case 'matk':
+            MATK_PEAKCALLING (
+                ch_grouped_ip_control_bam,
+                [],
+                ch_matk_jar
+            )
+            ch_called_peaks = MATK_PEAKCALLING.out.peak
+                .filter {
+                    meta, peaks ->
+                        peaks.size() > 0
+                }
+            ch_versions = ch_versions.mix(MATK_PEAKCALLING.out.versions.first())
+            break
+    }
 
-    MACS2_CALLPEAK (
-        ch_ip_control_bam,
-        PREPARE_GENOME.out.macs_gsize
-    )
-    ch_versions = ch_versions.mix(MACS2_CALLPEAK.out.versions.first())
-
-    //
-    // Filter out samples with 0 MACS2 peaks called
-    //
-    MACS2_CALLPEAK
-        .out
-        .peak
-        .filter {
-            meta, peaks ->
-                peaks.size() > 0
-        }
-        .set { ch_macs2_peaks }
+    // Create channels: [ meta, ip_bam, control_bam, peaks ]
+    ch_ip_control_bam
+        .join(ch_called_peaks, by: [0])
+        .set { ch_ip_control_bam_peaks}
 
     // Create channels: [ meta, ip_bam, peaks ]
-    ch_ip_control_bam
-        .join(ch_macs2_peaks, by: [0])
+    ch_ip_control_bam_peaks
         .map {
             it ->
                 [ it[0], it[1], it[3] ]
         }
         .set { ch_ip_bam_peaks }
+
+    //
+    // MODULE: MATK singleNucleotide
+    //
+    ch_grouped_ip_control_bam
+        .join(ch_called_peaks, by: [0])
+        .set { ch_grouped_ip_control_bam_peaks }
+
+    MATK_SINGLENUCLEOTIDE (
+        ch_grouped_ip_control_bam_peaks,
+        PREPARE_GENOME.out.bit,
+        ch_matk_jar
+    )
+    ch_versions = ch_versions.mix(MATK_SINGLENUCLEOTIDE.out.versions.first())
+
+    /*MATK_QUANTIFICATION (
+        ch_grouped_ip_control_bam_peaks,
+        PREPARE_GENOME.out.gtf,
+        ch_matk_jar
+    )
+    ch_versions = ch_versions.mix(MATK_QUANTIFICATION.out.versions.first())*/
 
     //
     // MODULE: Calculate FRiP score
@@ -406,7 +468,7 @@ workflow MERIP {
     //
     if( !params.skip_annotation ){
         BIOC_CHIPPEAKANNO (
-            ch_macs2_peaks.map{it[1]}.collect().map{[[id:'anno'], it]},
+            ch_called_peaks.map{it[1]}.collect().map{[[id:'anno'], it]},
             PREPARE_GENOME.out.gtf
         )
     }
