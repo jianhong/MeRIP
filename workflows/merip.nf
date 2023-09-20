@@ -53,7 +53,6 @@ ch_frip_score_header       = file("$projectDir/assets/multiqc/frip_score_header.
 include { FRIP_SCORE                  } from '../modules/local/frip_score'
 include { MULTIQC_CUSTOM_PEAKS        } from '../modules/local/multiqc_custom_peaks'
 include { BIOC_CHIPPEAKANNO           } from '../modules/local/chippeakanno'
-include { BIOC_DIFFBIND               } from '../modules/local/diffbind'
 
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
